@@ -341,6 +341,44 @@ a{text-decoration:none;color:inherit}
 .preview-header h2{font-size:16px}
 .preview-action-btn{padding:6px 12px;font-size:12px}
 }
+/* === PERINGATAN CURANG & BANNED === */
+.auth-curang-alert {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 2px solid #f59e0b;
+  border-left: 5px solid #f59e0b;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 14px;
+  text-align: center;
+  color: #92400e;
+  animation: shake 0.5s ease;
+}
+
+.auth-banned-alert {
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border: 2px solid #dc2626;
+  border-left: 5px solid #dc2626;
+  border-radius: 12px;
+  padding: 18px;
+  margin-bottom: 14px;
+  text-align: center;
+  color: #991b1b;
+}
+
+.auth-input.auto-filled {
+  background: #d1fae5 !important;
+  border-color: #10b981 !important;
+}
+
+.auth-input.invalid {
+  background: #fee2e2 !important;
+  border-color: #dc2626 !important;
+}
+
+#auth-kelas-grid.disabled-grid {
+  opacity: 0.5;
+  pointer-events: none;
+}
 </style>
 </head>
 <body>
@@ -365,7 +403,7 @@ a{text-decoration:none;color:inherit}
 <label>Email <span class="req">*</span></label>
 <div class="auth-input-wrap">
 <span class="auth-icon">📧</span>
-<input type="email" class="auth-input" id="signin-email" placeholder="nama@gmail.com" required autocomplete="email">
+<input type="email" class="auth-input" id="signin-email" placeholder="nama@email.com" required autocomplete="email">
 </div>
 </div>
 <div class="auth-field">
@@ -391,8 +429,29 @@ a{text-decoration:none;color:inherit}
 <div id="email-status" style="font-size:11px;margin-top:4px;font-weight:600;"></div>
 </div>
 <div class="auth-field">
-<label>Pilih Kelas <span class="req">*</span></label>
-<div class="auth-kelas-grid" id="auth-kelas-grid"></div>
+<label>NIS (Nomor Induk Siswa) <span class="req">*</span></label>
+<div class="auth-input-wrap">
+<span class="auth-icon">🆔</span>
+<input type="text" class="auth-input" id="signup-nis" placeholder="Masukkan NIS Anda" required autocomplete="off" oninput="lookupNIS(this.value)" maxlength="10" inputmode="numeric">
+</div>
+<div id="nis-status" style="font-size:11px;margin-top:4px;font-weight:600;"></div>
+</div>
+<div class="auth-field">
+<label>Nama Lengkap <span class="req">*</span></label>
+<div class="auth-input-wrap">
+<span class="auth-icon">👤</span>
+<input type="text" class="auth-input" id="signup-nama" placeholder="Akan terisi otomatis setelah NIS dimasukkan" required autocomplete="off" readonly style="background:#f3f4f6;cursor:not-allowed;">
+</div>
+<div id="nama-status" style="font-size:11px;margin-top:4px;font-weight:600;"></div>
+</div>
+<div class="auth-field">
+<label>Kelas <span class="req">*</span></label>
+<div class="auth-input-wrap">
+<span class="auth-icon">🏫</span>
+<input type="text" class="auth-input" id="signup-kelas-display" placeholder="Akan terisi otomatis setelah NIS dimasukkan" readonly style="background:#f3f4f6;cursor:not-allowed;font-weight:700;">
+</div>
+<input type="hidden" id="signup-kelas-value" value="">
+<div id="kelas-status" style="font-size:11px;margin-top:4px;font-weight:600;"></div>
 </div>
 <div class="auth-field">
 <label>Password <span class="req">*</span></label>
@@ -1370,7 +1429,7 @@ const SESSION_GURU="guru_bk_session";
 const STORAGE_SUARA="suara_entries";
 const ACTION_MAP={'asp':'submit_aspirasi','aduan':'submit_aduan','ref':'submit_refleksi','cerita':'submit_cerita','har':'submit_harapan','saran':'submit_saran','tes':'submit_testimoni','fb':'submit_feedback'};
 const MENU_MAP={'asp':{menu:'Aspirasi & Aduan',subMenu:'Kirim Aspirasi'},'aduan':{menu:'Aspirasi & Aduan',subMenu:'Sampaikan Aduan'},'ref':{menu:'Refleksi & Cerita',subMenu:'Tulis Refleksi'},'cerita':{menu:'Refleksi & Cerita',subMenu:'Bagikan Cerita'},'har':{menu:'Harapan & Saran',subMenu:'Tulis Harapan'},'saran':{menu:'Harapan & Saran',subMenu:'Berikan Saran'},'tes':{menu:'Testimoni & Umpan Balik',subMenu:'Tulis Testimoni'},'fb':{menu:'Testimoni & Umpan Balik',subMenu:'Umpan Balik Layanan'}};
-const KELAS_LIST=['VII-A','VII-B','VII-C','VII-D','VII-E','VII-F','VII-G','VII-H','VII-I','VII-J','VIII-A','VIII-B','VIII-C','VIII-D','VIII-E','VIII-F','VIII-G','VIII-H','VIII-I','VIII-J','IX-A','IX-B','IX-C','IX-D','IX-E','IX-F','IX-G','IX-H','IX-I','IX-J'];
+const KELAS_LIST=['VII-A','VII-B','VII-C','VII-D','VII-E','VII-F','VII-G','VII-H','VII-I','VII-J','VIII-A','VIII-B','VIII-C','VIII-D','VIII-E','VIII-F','VIII-G','VIII-H','VIII-I','IX-A','IX-B','IX-C','IX-D','IX-E','IX-F','IX-G','IX-H','IX-I'];
 const uploadStorage={};
 let selectedAuthKelas='';
 let emailCheckTimer=null;
@@ -1379,6 +1438,10 @@ let lastSubmitInfo=null;
 let currentGuruKelas=null;
 let currentLaporanData=null;
 let currentPreviewLaporan=null;
+let currentLookupData=null;
+let lookupNISTimer=null;
+let isBanned=false;
+let curangCount=0;
 
 /* ================================================================ */
 /* AUTH SYSTEM */
@@ -1391,13 +1454,11 @@ else if(tab==='signup'){document.querySelectorAll('.auth-tab')[1].classList.add(
 else if(tab==='guru'){document.querySelectorAll('.auth-tab')[2].classList.add('active');document.getElementById('form-guru').classList.add('active');}
 document.querySelectorAll('.auth-error').forEach(e=>e.classList.remove('show'));
 }
-
 function togglePwdVisibility(inputId,btn){
 const input=document.getElementById(inputId);
 if(input.type==='password'){input.type='text';btn.textContent='🙈';}
 else{input.type='password';btn.textContent='👁️';}
 }
-
 function initAuthKelasGrid(){
 const grid=document.getElementById('auth-kelas-grid');
 if(!grid)return;
@@ -1409,13 +1470,11 @@ html+=`<div class="auth-kelas-item" data-value="${kelas}" onclick="selectAuthKel
 });
 grid.innerHTML=html;
 }
-
 function selectAuthKelas(el){
 document.querySelectorAll('.auth-kelas-item').forEach(i=>i.classList.remove('selected'));
 el.classList.add('selected');
 selectedAuthKelas=el.dataset.value;
 }
-
 function validatePasswordStrength(){
 const pwd=document.getElementById('signup-password').value;
 const lengthRule=document.getElementById('rule-length');
@@ -1434,7 +1493,6 @@ if(pwd.length>=10)strength+=20;
 strengthFill.style.width=strength+'%';
 validatePasswordMatch();
 }
-
 function validatePasswordMatch(){
 const pwd=document.getElementById('signup-password').value;
 const confirm=document.getElementById('signup-confirm').value;
@@ -1444,7 +1502,6 @@ if(!confirm){status.textContent='';confirmInput.classList.remove('error','succes
 if(pwd.toLowerCase()===confirm.toLowerCase()){status.textContent='✅ Password cocok';status.style.color='var(--success)';confirmInput.classList.remove('error');confirmInput.classList.add('success');}
 else{status.textContent='❌ Password tidak cocok';status.style.color='var(--danger)';confirmInput.classList.remove('success');confirmInput.classList.add('error');}
 }
-
 function checkEmailAvailability(){
 const email=document.getElementById('signup-email').value.trim();
 const status=document.getElementById('email-status');
@@ -1466,29 +1523,110 @@ else{status.textContent='✅ Email tersedia';status.style.color='var(--success)'
 },600);
 }
 
+/* ================================================================ */
+/* LOOKUP NIS (AUTO-FILL NAMA & KELAS) */
+/* ================================================================ */
+function lookupNIS(nis){
+const nisInput=document.getElementById('signup-nis');
+const namaInput=document.getElementById('signup-nama');
+const kelasDisplay=document.getElementById('signup-kelas-display');
+const kelasValue=document.getElementById('signup-kelas-value');
+const nisStatus=document.getElementById('nis-status');
+const namaStatus=document.getElementById('nama-status');
+const kelasStatus=document.getElementById('kelas-status');
+clearTimeout(lookupNISTimer);
+currentLookupData=null;
+namaInput.value='';
+kelasDisplay.value='';
+kelasValue.value='';
+nisInput.classList.remove('success','error');
+namaInput.classList.remove('success','error');
+kelasDisplay.classList.remove('success','error');
+nisStatus.textContent='';
+namaStatus.textContent='';
+kelasStatus.textContent='';
+if(!nis||nis.length<3)return;
+nisStatus.textContent='⏳ Mencari NIS...';
+nisStatus.style.color='var(--text-muted)';
+lookupNISTimer=setTimeout(async()=>{
+try{
+const res=await fetch(BACKEND_URL+'?action=lookup_nis&nis='+encodeURIComponent(nis),{method:'GET',redirect:'follow'});
+const result=await res.json();
+if(result.success&&result.found){
+currentLookupData={nis:result.nis,nama:result.nama,kelas:result.kelas};
+namaInput.value=result.nama;
+kelasDisplay.value=result.kelas;
+kelasValue.value=result.kelas;
+nisInput.classList.add('success');
+namaInput.classList.add('success');
+kelasDisplay.classList.add('success');
+nisStatus.textContent=`✅ NIS ditemukan - ${result.lp==='L'?'Laki-laki':'Perempuan'}`;
+nisStatus.style.color='var(--success)';
+namaStatus.textContent=`✓ Nama terverifikasi: ${result.nama}`;
+namaStatus.style.color='var(--success)';
+kelasStatus.textContent=`✓ Kelas terverifikasi: ${result.kelas}`;
+kelasStatus.style.color='var(--success)';
+}else if(result.success&&!result.found){
+nisInput.classList.add('error');
+nisStatus.textContent='❌ NIS tidak ditemukan dalam daftar siswa SMPN 56 Jakarta';
+nisStatus.style.color='var(--danger)';
+}else{
+nisStatus.textContent='⚠️ '+(result.error||'Gagal mencari NIS');
+nisStatus.style.color='var(--danger)';
+}
+}catch(err){
+nisStatus.textContent='❌ Gagal terhubung ke server';
+nisStatus.style.color='var(--danger)';
+}
+},500);
+}
+
+/* ================================================================ */
+/* HANDLE SIGN UP (DENGAN VERIFIKASI NIS) */
+/* ================================================================ */
 async function handleSignUp(event){
 event.preventDefault();
+if(isBanned){showToast('🚫 Anda telah diblokir dari pendaftaran','error');return;}
 const errBox=document.getElementById('signup-error');
 errBox.classList.remove('show');
 const email=document.getElementById('signup-email').value.trim();
+const nis=document.getElementById('signup-nis').value.trim();
+const nama=document.getElementById('signup-nama').value.trim();
+const kelas=document.getElementById('signup-kelas-value').value;
 const password=document.getElementById('signup-password').value;
 const confirmPassword=document.getElementById('signup-confirm').value;
 const btn=document.getElementById('signup-btn');
-if(!selectedAuthKelas){errBox.textContent='⚠️ Silakan pilih kelas Anda';errBox.classList.add('show');return;}
+if(!nis){errBox.textContent='⚠️ NIS wajib diisi';errBox.classList.add('show');return;}
+if(!currentLookupData){errBox.textContent='⚠️ NIS tidak valid. Silakan masukkan NIS yang terdaftar di SMPN 56 Jakarta.';errBox.classList.add('show');return;}
+if(!nama){errBox.textContent='⚠️ Nama wajib diisi (auto-fill dari NIS)';errBox.classList.add('show');return;}
+if(!kelas){errBox.textContent='⚠️ Kelas wajib diisi (auto-fill dari NIS)';errBox.classList.add('show');return;}
 if(password.length<6){errBox.textContent='⚠️ Password minimal 6 karakter';errBox.classList.add('show');return;}
 if(!/[@#*$!%^&?+=\-_~.,:;<>[\]{}()|/\\]/.test(password)){errBox.textContent='⚠️ Password harus mengandung karakter unik (@, #, *, dll)';errBox.classList.add('show');return;}
 if(password.toLowerCase()!==confirmPassword.toLowerCase()){errBox.textContent='⚠️ Konfirmasi password tidak cocok';errBox.classList.add('show');return;}
 btn.disabled=true;btn.innerHTML='⏳ Mendaftar...';
 try{
-const payload={action:'register_user',email:email,kelas:selectedAuthKelas,password:password,confirmPassword:confirmPassword};
+const payload={action:'register_user',email:email,kelas:kelas,password:password,confirmPassword:confirmPassword,nis:nis,nama:nama};
 const res=await fetch(BACKEND_URL,{method:'POST',body:JSON.stringify(payload),headers:{'Content-Type':'text/plain;charset=utf-8'},redirect:'follow'});
 const result=await res.json();
 if(result.success){
-sessionStorage.setItem(SESSION_USER,JSON.stringify({email:result.email,kelas:result.kelas,loginTime:new Date().toISOString()}));
+sessionStorage.setItem(SESSION_USER,JSON.stringify({email:result.email,kelas:result.kelas,nis:result.nis,nama:result.nama,loginTime:new Date().toISOString()}));
 showPwdAccessModal('signup',result.email,result.kelas);
-}else{errBox.textContent='❌ '+result.error;errBox.classList.add('show');}
+}else{
+if(result.errorCode==='KELAS_TIDAK_COCOK'||result.errorCode==='NAMA_TIDAK_COCOK'){
+curangCount=result.curang_count||(curangCount+1);
+const remaining=result.remaining_attempts||(3-curangCount);
+if(remaining<=0){
+isBanned=true;
+document.getElementById('signup-banned-alert').style.display='block';
+btn.disabled=true;
+btn.innerHTML='🚫 Anda Diblokir';
+}
+}
+errBox.textContent='❌ '+result.error;
+errBox.classList.add('show');
+}
 }catch(err){errBox.textContent='❌ Gagal terhubung ke server: '+err.message;errBox.classList.add('show');}
-finally{btn.disabled=false;btn.innerHTML='📝 Daftar Sekarang';}
+finally{if(!isBanned){btn.disabled=false;btn.innerHTML='📝 Daftar Sekarang';}}
 }
 
 async function handleSignIn(event){
@@ -1536,7 +1674,7 @@ document.getElementById('auth-overlay').style.display='none';
 document.getElementById('auth-overlay').classList.add('hidden');
 updateUserBadge();
 showToast(`✅ Selamat datang, ${name}! Anda masuk ke Platform Suara Siswa.`,'success',3500);
-window.scrollTo(0, 0);
+window.scrollTo(0,0);
 }else{
 errBox.textContent='❌ Password Guru BK salah!';
 errBox.classList.add('show');
@@ -1555,7 +1693,6 @@ if(mode==='signup'){title.textContent='🎉 Registrasi Berhasil!';welcome.innerH
 else{title.textContent='✅ Login Berhasil!';welcome.innerHTML=`Selamat datang kembali, <strong>${email}</strong>!<br>Kelas: <strong>${kelas}</strong><br><br>Silakan gunakan password akses berikut:`;}
 modal.classList.add('show');
 }
-
 function proceedToPlatform(){
 document.getElementById('pwd-access-modal').classList.remove('show');
 document.getElementById('auth-overlay').classList.add('hidden');
@@ -1563,7 +1700,6 @@ setTimeout(()=>{document.getElementById('auth-overlay').style.display='none';},4
 updateUserBadge();
 showPlatformPasswordOverlay();
 }
-
 function showPlatformPasswordOverlay(){
 const loginOverlay=document.getElementById('login-overlay');
 loginOverlay.style.display='flex';
@@ -1571,19 +1707,16 @@ loginOverlay.classList.remove('hidden');
 document.getElementById('password-input').focus();
 showToast('🔐 Silakan masukkan password akses platform','info',4000);
 }
-
 function getCurrentUser(){
 const userStr=sessionStorage.getItem(SESSION_USER);
 if(!userStr)return null;
 try{return JSON.parse(userStr);}catch(e){return null;}
 }
-
 function getGuruSession(){
 const guruStr=sessionStorage.getItem(SESSION_GURU);
 if(!guruStr)return null;
 try{return JSON.parse(guruStr);}catch(e){return null;}
 }
-
 function updateUserBadge(){
 const user=getCurrentUser();
 const guru=getGuruSession();
@@ -1594,7 +1727,6 @@ if(guru){text.textContent=`👨‍🏫 ${guru.name} (Guru BK)`;badge.classList.a
 else if(user){text.textContent=`${user.email} • ${user.kelas}`;badge.classList.add('show');badge.style.background='rgba(255,255,255,0.15)';badge.style.borderColor='rgba(255,255,255,0.25)';}
 else{badge.classList.remove('show');}
 }
-
 function showUserMenu(){
 const user=getCurrentUser();
 const guru=getGuruSession();
@@ -1639,7 +1771,6 @@ html+=`<div class="${itemClass}" data-value="${kelas}" ${onclickAttr}>${kelas}</
 grid.innerHTML=html;
 });
 }
-
 function selectKelas(el,gridId){
 if(el.classList.contains('disabled'))return;
 const grid=document.getElementById(gridId);
@@ -1649,14 +1780,12 @@ if(user&&el.dataset.value!==user.kelas){showToast(`⚠️ Kelas ${el.dataset.val
 grid.querySelectorAll('.sp-kelas-item').forEach(i=>i.classList.remove('selected'));
 el.classList.add('selected');
 }
-
 function getSelectedKelas(gridId){
 const grid=document.getElementById(gridId);
 if(!grid)return'';
 const sel=grid.querySelector('.sp-kelas-item.selected');
 return sel?sel.dataset.value:'';
 }
-
 function validateUserKelas(type){
 const user=getCurrentUser();
 if(!user)return true;
@@ -1674,7 +1803,6 @@ if(bytes<1024)return bytes+' B';
 if(bytes<1024*1024)return(bytes/1024).toFixed(1)+' KB';
 return(bytes/(1024*1024)).toFixed(2)+' MB';
 }
-
 function compressImage(file,maxSizeMB=2){
 return new Promise((resolve,reject)=>{
 const maxSizeBytes=maxSizeMB*1024*1024;
@@ -1716,7 +1844,6 @@ reader.onerror=function(){reject(new Error('Gagal membaca file'));};
 reader.readAsDataURL(file);
 });
 }
-
 async function handleUpload(event,type){
 const file=event.target.files[0];
 if(!file)return;
@@ -1749,7 +1876,6 @@ info.textContent='❌ Gagal mengompres foto';
 showToast('❌ Gagal mengompres foto: '+err.message,'error');
 }
 }
-
 function removeUpload(type){
 const box=document.getElementById(type+'-upload-box');
 const preview=document.getElementById(type+'-upload-preview');
@@ -1765,27 +1891,26 @@ delete uploadStorage[type];
 /* ================================================================ */
 /* NAVIGASI */
 /* ================================================================ */
-function navigateTo(pageId,pageCode,tabCode){
-closeAllDD();
-document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-const target=document.getElementById(pageId);
-if(target)target.classList.add('active');
-if(pageCode&&tabCode){
-setTimeout(()=>{
-activateTab(pageCode,tabCode);
-// Scroll ke panel yang aktif (bukan top of document)
-const panel=document.getElementById(pageCode+'-'+tabCode);
-if(panel){
-const navbarHeight=document.querySelector('.navbar')?.offsetHeight||0;
-const targetPosition=panel.getBoundingClientRect().top+window.scrollY-navbarHeight-20;
-window.scrollTo({top:targetPosition,behavior:'auto'});
+function navigateTo(pageId, pageCode, tabCode) {
+  closeAllDD();
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const target = document.getElementById(pageId);
+  if (target) target.classList.add('active');
+  if (pageCode && tabCode) {
+    setTimeout(() => {
+      activateTab(pageCode, tabCode);
+      // Scroll ke panel aktif, bukan ke top
+      const panel = document.getElementById(pageCode + '-' + tabCode);
+      if (panel) {
+        const navbarHeight = document.querySelector('.navbar')?.offsetHeight || 0;
+        const panelTop = panel.getBoundingClientRect().top + window.scrollY - navbarHeight;
+        window.scrollTo({ top: panelTop, behavior: 'instant' });
+      }
+    }, 100);
+  } else {
+    window.scrollTo(0, 0);
+  }
 }
-},100);
-}else{
-window.scrollTo(0, 0);
-}
-}
-
 function activateTab(pageCode,tabCode){
 const pageMap={'asp':'aspirasi-aduan','ref':'refleksi-cerita','har':'harapan-saran','tes':'testimoni-feedback'};
 const pageEl=document.getElementById(pageMap[pageCode]);
@@ -1796,7 +1921,6 @@ if(idx===undefined)return;
 const btns=pageEl.querySelectorAll('.sp-tab-btn');
 if(btns[idx])btns[idx].click();
 }
-
 function switchSpTab(page,tab,btn){
 if(event)event.stopPropagation();
 const pageMap={'asp':'aspirasi-aduan','ref':'refleksi-cerita','har':'harapan-saran','tes':'testimoni-feedback'};
@@ -1809,11 +1933,15 @@ const panel=document.getElementById(page+'-'+tab);
 if(panel)panel.classList.add('active');
 if(tab==='koleksi')renderCollection(page);
 }
-
-function goHome(){
-closeAllDD();
-document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-window.scrollTo(0, 0);
+function goHome() {
+  closeAllDD();
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const hero = document.getElementById('home-section');
+  if (hero) {
+    hero.scrollIntoView({ behavior: 'instant', block: 'start' });
+  } else {
+    window.scrollTo(0, 0);
+  }
 }
 
 /* ================================================================ */
@@ -1825,21 +1953,18 @@ if(!group)return;
 group.querySelectorAll('.sp-category-item').forEach(i=>i.classList.remove('selected'));
 el.classList.add('selected');
 }
-
 function selectMood(el,groupId){
 const group=document.getElementById(groupId);
 if(!group)return;
 group.querySelectorAll('.sp-mood-item').forEach(i=>i.classList.remove('selected'));
 el.classList.add('selected');
 }
-
 function getSelectedValue(groupId){
 const group=document.getElementById(groupId);
 if(!group)return'';
 const sel=group.querySelector('.selected');
 return sel?sel.dataset.value:'';
 }
-
 function getAnonId(type){
 const map={'asp':'asp-anon','aduan':'aduan-anon','ref':'ref-anon','cerita':'cerita-anon','har':'har-anon','saran':'saran-anon','tes':'tes-anon','fb':'fb-anon'};
 return map[type];
@@ -1892,7 +2017,6 @@ showToast('❌ '+err.message,'error');
 if(submitBtn){submitBtn.disabled=false;submitBtn.innerHTML=originalBtnText;}
 }
 }
-
 function saveLocalBackup(type,payload,result){
 let entries=[];
 try{entries=JSON.parse(localStorage.getItem(STORAGE_SUARA)||'[]');}catch(e){}
@@ -1929,7 +2053,6 @@ if(countdownEl)countdownEl.textContent=countdown;
 if(countdown<=0){clearInterval(postSubmitCountdownTimer);handlePostSubmitChoice('continue');}
 },1000);
 }
-
 function handlePostSubmitChoice(choice){
 clearInterval(postSubmitCountdownTimer);
 const modal=document.getElementById('post-submit-modal');
@@ -1937,7 +2060,6 @@ if(modal)modal.classList.remove('show');
 if(choice==='logout'){logoutUser();}
 else{showToast('✍️ Silakan isi form kembali','info',2500);window.scrollTo({top:0,behavior:'auto'});}
 }
-
 function logoutUser(){
 if(!confirm('🚪 Apakah Anda yakin ingin logout?\n\nAnda akan kembali ke halaman login.')){if(lastSubmitInfo)showPostSubmitModal(lastSubmitInfo);return;}
 sessionStorage.removeItem(SESSION_USER);
@@ -1975,7 +2097,6 @@ if(result.success&&result.data&&result.data.length>0){renderCollectionFromServer
 }catch(err){console.warn('Backend fetch failed');}
 renderCollectionFromLocal(container,page);
 }
-
 function renderCollectionFromServer(container,data,page){
 const labelMap={'Aspirasi':'Aspirasi','Aduan':'Aduan','Refleksi':'Refleksi','Cerita':'Cerita','Harapan':'Harapan','Saran':'Saran','Testimoni':'Testimoni','Feedback':'Umpan Balik'};
 container.innerHTML=data.slice(0,30).map(entry=>{
@@ -2005,7 +2126,6 @@ ${recordId?`<div style="font-size:.72rem;color:#a78bfa;margin-top:.4rem;font-fam
 </div>`;
 }).join('');
 }
-
 function renderCollectionFromLocal(container,page){
 const typeMap={'asp':['asp','aduan'],'ref':['ref','cerita'],'har':['har','saran'],'tes':['tes','fb']};
 const labelMap={'asp':'Aspirasi','aduan':'Aduan','ref':'Refleksi','cerita':'Cerita','har':'Harapan','saran':'Saran','tes':'Testimoni','fb':'Umpan Balik'};
@@ -2049,17 +2169,14 @@ document.getElementById('password-input').value='';
 document.getElementById('password-input').focus();
 }
 }
-
 function toggleDD(id){
 const dd=document.getElementById('dd-'+id);
 document.querySelectorAll('.dropdown').forEach(d=>{if(d!==dd)d.classList.remove('show');});
 dd.classList.toggle('show');
 }
-
 function closeAllDD(){
 document.querySelectorAll('.dropdown').forEach(d=>d.classList.remove('show'));
 }
-
 let toastTimer;
 function showToast(message,type='info',duration=3500){
 const toast=document.getElementById('toast');
@@ -2087,7 +2204,6 @@ if(errorMsg)errorMsg.style.display='none';
 currentGuruKelas=null;
 currentLaporanData=null;
 }
-
 function closeGuruBK(){
 document.getElementById('guru-overlay').classList.remove('show');
 document.getElementById('guru-login-state').style.display='block';
@@ -2096,7 +2212,6 @@ document.getElementById('guru-kelas-detail').style.display='none';
 currentGuruKelas=null;
 currentLaporanData=null;
 }
-
 function checkGuruPassword(){
 const input=document.getElementById('guru-password-input');
 const errorMsg=document.getElementById('guru-login-error');
@@ -2111,7 +2226,6 @@ input.value='';
 input.focus();
 }
 }
-
 async function loadRekapKelas(forceRefresh=false){
 const grid=document.getElementById('guru-rekap-grid');
 grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted);">⏳ Memuat rekap...</div>';
@@ -2132,7 +2246,6 @@ return`<div class="guru-rekap-item ${isEmpty?'empty':''} ${currentGuruKelas===k?
 grid.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--danger);">❌ Gagal memuat rekap<br><button onclick="loadRekapKelas(true)" style="margin-top:10px;padding:8px 16px;background:var(--gradient-hero);color:#fff;border:none;border-radius:8px;cursor:pointer;">🔄 Coba Lagi</button></div>`;
 }
 }
-
 async function selectGuruKelas(kelas){
 currentGuruKelas=kelas;
 document.querySelectorAll('.guru-rekap-item').forEach(el=>el.classList.remove('selected'));
@@ -2154,7 +2267,6 @@ document.getElementById('guru-kelas-subtitle').textContent='❌ '+err.message;
 document.getElementById('guru-entries-container').innerHTML='<div class="guru-empty"><span class="guru-empty-icon">⚠️</span>Gagal memuat laporan</div>';
 }
 }
-
 function renderGuruLaporan(laporan){
 document.getElementById('guru-kelas-subtitle').textContent=laporan.found?`Laporan aktif terupdate ${laporan.last_update}`:'Belum ada entri dari kelas ini';
 const meta=document.getElementById('guru-kelas-meta');
@@ -2192,15 +2304,12 @@ return`<div class="guru-entry-item">
 </div>
 ${laporan.data.length>5?`<div style="text-align:center;margin-top:12px;font-size:12px;color:var(--text-muted);">...dan ${laporan.data.length-5} entri lainnya. Klik "Preview Laporan Lengkap" untuk melihat semua.</div>`:''}`;
 }
-
 async function refreshLaporanKelas(){if(currentGuruKelas)await selectGuruKelas(currentGuruKelas);}
-
 async function toggleArsip(){
 const section=document.getElementById('guru-arsip-section');
 if(section.style.display==='none'){section.style.display='block';await loadArsipKelas();}
 else{section.style.display='none';}
 }
-
 async function loadArsipKelas(){
 const list=document.getElementById('guru-arsip-list');
 list.innerHTML='<div style="text-align:center;padding:12px;color:var(--text-muted);">⏳ Memuat arsip...</div>';
@@ -2218,19 +2327,17 @@ list.innerHTML=result.data.map(arsip=>`<div class="guru-arsip-item">
 }
 
 /* ================================================================ */
-/* PREVIEW LAPORAN + PDF DENGAN GAMBAR TERKOMPRESI */
+/* PREVIEW LAPORAN + PDF */
 /* ================================================================ */
 function escapeHTML(str){
 if(!str)return'';
 return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
 }
-
 function extractDriveFileId(url){
 if(!url)return null;
 const match=url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
 return match?match[1]:null;
 }
-
 function loadImageWithTimeout(url,timeoutMs=15000){
 return new Promise((resolve,reject)=>{
 const img=new Image();
@@ -2241,7 +2348,6 @@ img.onerror=function(){clearTimeout(timeout);reject(new Error('Gagal memuat gamb
 img.src=url;
 });
 }
-
 async function compressDriveImage(fileId,maxSizeMB=2){
 const urls=[
 `https://lh3.googleusercontent.com/d/${fileId}`,
@@ -2289,12 +2395,10 @@ return tryCompress(qualities[0],newWidth,newHeight);
 }
 return tryCompress(qualities[0],width,height);
 }
-
 function previewLaporanAktif(){
 if(!currentLaporanData||!currentLaporanData.found){showToast('⚠️ Tidak ada laporan untuk di-preview','error');return;}
 showLaporanPreview(currentLaporanData);
 }
-
 async function showLaporanPreview(laporan){
 if(!laporan||!laporan.found||!laporan.data||laporan.data.length===0){showToast('⚠️ Tidak ada data untuk ditampilkan','error');return;}
 currentPreviewLaporan=laporan;
@@ -2321,7 +2425,6 @@ console.error('Preview error:',err);
 content.innerHTML=`<div style="text-align:center;padding:40px;color:var(--danger);">❌ Gagal memuat preview: ${err.message}</div>`;
 }
 }
-
 async function buildPreviewHTMLAsync(laporan){
 const kelas=laporan.kelas;
 const labelMap={'Aspirasi':'Aspirasi','Aduan':'Aduan','Refleksi':'Refleksi','Cerita':'Cerita','Harapan':'Harapan','Saran':'Saran','Testimoni':'Testimoni','Feedback':'Umpan Balik'};
@@ -2388,13 +2491,11 @@ ${entriesHTML}
 successCount,failCount
 };
 }
-
 function closePreviewLaporan(){
 document.getElementById('preview-laporan-modal').classList.remove('show');
 document.body.style.overflow='';
 currentPreviewLaporan=null;
 }
-
 function printLaporan(){
 const content=document.getElementById('preview-report-content').innerHTML;
 const printWindow=window.open('','_blank');
@@ -2421,7 +2522,6 @@ body{font-family:'Segoe UI',sans-serif;padding:20px;color:#1e1b4b}
 printWindow.document.close();
 setTimeout(()=>{printWindow.print();},500);
 }
-
 async function downloadLaporanPDF(){
 if(!currentPreviewLaporan||!currentPreviewLaporan.found){showToast('⚠️ Tidak ada data untuk diunduh','error');return;}
 const loadingOverlay=document.getElementById('pdf-loading-overlay');
